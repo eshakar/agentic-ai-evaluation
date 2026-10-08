@@ -1,0 +1,5 @@
+{"id": "math-001", "input": "What is (17 * 23) + 4? Reply with only the number.", "expected_output": "395", "expected_tools": ["calculator"]}
+{"id": "math-002", "input": "What is 2 to the power of 10, minus 24? Reply with only the number.", "expected_output": "1000", "expected_tools": ["calculator"]}
+{"id": "math-003", "input": "A shop sells pens at 12 each. How much do 15 pens cost? Reply with only the number.", "expected_output": "180", "expected_tools": ["calculator"]}
+{"id": "time-001", "input": "What year is it right now in UTC? Reply with only the year.", "expected_tools": ["current_utc_time"], "rubric": "The answer is a single four-digit year that matches the current_utc_time tool output."}
+{"id": "chat-001", "input": "In one sentence, what is an AI agent?", "expected_tools": [], "rubric": "A single accurate sentence describing an AI agent as a system that uses a model to take actions or call tools toward a goal. No tools should be used."}
