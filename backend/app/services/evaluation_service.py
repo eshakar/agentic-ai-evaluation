@@ -10,7 +10,7 @@ from pathlib import Path
 from app.agents import get_agent
 from app.core.config import get_settings
 from app.evaluators import BaseEvaluator, get_evaluators
-from app.schemas.evaluation import AgentTrace, CaseResult, EvalCase, RunSummary
+from app.schemas.evaluation import AgentTrace, CaseResult, EvalCase, RunListItem, RunSummary
 
 logger = logging.getLogger(__name__)
 
@@ -73,6 +73,18 @@ def load_run(run_id: str) -> RunSummary | None:
     if not path.is_file():
         return None
     return RunSummary.model_validate(json.loads(path.read_text(encoding="utf-8")))
+
+
+def list_runs(limit: int = 20) -> list[RunListItem]:
+    """Most recent saved runs first."""
+    items: list[RunListItem] = []
+    for path in get_settings().results_dir.glob("*.json"):
+        try:
+            items.append(RunListItem.model_validate_json(path.read_text(encoding="utf-8")))
+        except ValueError:
+            logger.warning("Skipping unreadable run file %s", path.name)
+    items.sort(key=lambda r: r.created_at, reverse=True)
+    return items[:limit]
 
 
 async def run_evaluation(

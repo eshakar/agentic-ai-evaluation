@@ -1,9 +1,9 @@
 services:
-  api:
-    build: .
+  backend:
+    build: ./backend
     ports:
       - "8000:8000"
-    env_file: .env
+    env_file: ./backend/.env
     volumes:
-      - ./results:/app/results
-      - ./datasets:/app/datasets
+      - ./backend/results:/app/results
+      - ./backend/datasets:/app/datasets

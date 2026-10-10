@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException
 
 from app.agents import list_agents
 from app.evaluators import get_evaluators, list_evaluators
-from app.schemas.evaluation import RunRequest, RunSummary, ScoreRequest
+from app.schemas.evaluation import RunListItem, RunRequest, RunSummary, ScoreRequest
 from app.services import evaluation_service as svc
 
 router = APIRouter(prefix="/evaluations", tags=["evaluations"])
@@ -16,6 +16,12 @@ async def catalog() -> dict[str, list[str]]:
         "evaluators": list_evaluators(),
         "datasets": svc.list_datasets(),
     }
+
+
+@router.get("/runs", response_model=list[RunListItem])
+async def list_runs(limit: int = 20) -> list[RunListItem]:
+    """Most recent runs first."""
+    return svc.list_runs(limit)
 
 
 @router.post("/run", response_model=RunSummary)

@@ -33,5 +33,5 @@ Thumbs.db
 .ipynb_checkpoints/
 
 # Evaluation outputs
-results/*
-!results/.gitkeep
+**/results/*
+!**/results/.gitkeep

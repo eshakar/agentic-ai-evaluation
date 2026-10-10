@@ -62,6 +62,16 @@ class RunSummary(BaseModel):
     results: list[CaseResult]
 
 
+class RunListItem(BaseModel):
+    """Lightweight run info for listing past runs."""
+
+    run_id: str
+    created_at: datetime
+    agent: str
+    num_cases: int
+    pass_rate: float
+
+
 class RunRequest(BaseModel):
     """Run an agent over a dataset (or inline cases) and score it."""
 

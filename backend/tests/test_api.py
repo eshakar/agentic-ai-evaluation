@@ -61,3 +61,23 @@ def test_unknown_evaluator_returns_422(client):
 def test_missing_dataset_returns_404(client):
     r = client.post("/api/v1/evaluations/run", json={"agent": "echo", "dataset": "missing.jsonl"})
     assert r.status_code == 404
+
+
+def test_list_runs_newest_first(client):
+    for _ in range(2):
+        client.post(
+            "/api/v1/evaluations/run",
+            json={
+                "agent": "echo",
+                "cases": [{"id": "a", "input": "x"}],
+                "evaluators": ["no_error"],
+            },
+        )
+    runs = client.get("/api/v1/evaluations/runs").json()
+    assert len(runs) == 2
+    assert runs[0]["created_at"] >= runs[1]["created_at"]
+
+
+def test_cors_allows_frontend_origin(client):
+    r = client.get("/health", headers={"Origin": "http://localhost:3000"})
+    assert r.headers["access-control-allow-origin"] == "http://localhost:3000"
