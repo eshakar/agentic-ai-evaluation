@@ -21,6 +21,9 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     # Browser origins allowed to call the API (the Next.js frontend).
     cors_origins: list[str] = ["http://localhost:3000", "http://127.0.0.1:3000"]
+    # Secret required in the X-API-Key header of every /api/v1 request. Leave empty for an
+    # open API (local development only). Always set it when the API is on the internet.
+    api_access_key: str | None = None
 
     anthropic_api_key: str | None = None
     agent_model: str = "claude-opus-5-5"

@@ -1,3 +1,5 @@
+import logging
+import os
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 
@@ -13,6 +15,10 @@ from app.db.store import close_storage, init_storage
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+    if not get_settings().api_access_key and os.environ.get("VERCEL"):
+        logging.getLogger(__name__).warning(
+            "API_ACCESS_KEY is not set: the API is open to anyone who finds its URL."
+        )
     await init_storage()  # connect to MongoDB (or fall back to files)
     yield
     await close_storage()

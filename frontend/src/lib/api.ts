@@ -1,6 +1,8 @@
 // Typed client for the FastAPI backend. Types mirror backend/app/schemas/evaluation.py.
+// Calls go to this website's own relay (/api/backend/...), which adds the secret API key
+// on the server; the browser never talks to the backend directly.
 
-export const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const RELAY = "/api/backend";
 
 export type ToolCall = {
   name: string;
@@ -122,12 +124,20 @@ function errorDetail(body: unknown, fallback: string): string {
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
   let res: Response;
   try {
-    res = await fetch(`${API_URL}${path}`, {
+    res = await fetch(`${RELAY}${path}`, {
       ...init,
       headers: { "Content-Type": "application/json", ...init?.headers },
     });
   } catch {
-    throw new Error(`Cannot reach the backend at ${API_URL}. Is it running?`);
+    throw new Error("Cannot reach the website server. Check your connection.");
+  }
+  if (res.status === 401) {
+    // Session expired or logged out: go to the login page, then come back here.
+    const next = window.location.pathname + window.location.search;
+    // Plain module, not a component, so no router here; a full navigation is fine.
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+    window.location.assign(`/login?next=${encodeURIComponent(next)}`);
+    throw new Error("Please log in.");
   }
   if (!res.ok) {
     const body = await res.json().catch(() => null);

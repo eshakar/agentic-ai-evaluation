@@ -8,6 +8,7 @@ import {
   FlaskConicalIcon,
   HistoryIcon,
   HouseIcon,
+  LogOutIcon,
   MenuIcon,
   MessageSquareTextIcon,
   PlayIcon,
@@ -84,6 +85,34 @@ function ApiStatus() {
   );
 }
 
+/** Shown only when login is enabled and this browser is logged in. */
+function LogoutButton() {
+  const [show, setShow] = useState(false);
+  useEffect(() => {
+    fetch("/api/auth/status")
+      .then((r) => r.json())
+      .then((s: { enabled: boolean; authenticated: boolean }) => setShow(s.enabled && s.authenticated))
+      .catch(() => {});
+  }, []);
+  if (!show) return null;
+  return (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-label="Log out"
+      title="Log out"
+      onClick={async () => {
+        await fetch("/api/auth/logout", { method: "POST" });
+        // A full reload on purpose: it drops every page's data held in memory.
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination
+        window.location.assign("/login");
+      }}
+    >
+      <LogOutIcon />
+    </Button>
+  );
+}
+
 /**
  * The nav highlights the current page, which means reading the URL. With cacheComponents on,
  * that read must sit inside <Suspense> on pages whose URL isn't known at build time
@@ -103,6 +132,8 @@ function NavWithPathname() {
 
 function NavBar({ pathname }: { pathname: string | null }) {
   const [open, setOpen] = useState(false);
+  // The login page shows just the logo and theme toggle: nothing else works before login.
+  const onLogin = pathname === "/login";
   const [lastPath, setLastPath] = useState(pathname);
 
   // Close the mobile menu whenever the route changes.
@@ -126,7 +157,7 @@ function NavBar({ pathname }: { pathname: string | null }) {
         </Link>
 
         {/* Desktop links: the highlight pill slides between links (shared layoutId). */}
-        <ul className="ml-2 hidden items-center gap-1 md:flex">
+        <ul className={cn("ml-2 hidden items-center gap-1", !onLogin && "md:flex")}>
           {LINKS.map(({ href, label, icon: Icon }) => {
             const active = isActive(pathname, href);
             return (
@@ -155,12 +186,13 @@ function NavBar({ pathname }: { pathname: string | null }) {
         </ul>
 
         <div className="ml-auto flex items-center gap-2">
-          <ApiStatus />
+          {!onLogin && <ApiStatus />}
           <ThemeToggle />
+          {!onLogin && <LogoutButton />}
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden"
+            className={cn("md:hidden", onLogin && "hidden")}
             aria-label={open ? "Close menu" : "Open menu"}
             aria-expanded={open}
             onClick={() => setOpen((o) => !o)}
