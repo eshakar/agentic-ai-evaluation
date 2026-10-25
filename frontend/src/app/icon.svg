@@ -1,0 +1,21 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
+  <!-- Same flask as the nav-bar logo (lucide "flask-conical"). Light tile in dark mode so it
+       stays visible on dark browser tabs, matching the app's primary theme colors. -->
+  <style>
+    .tile { fill: #171717; }
+    .ink { stroke: #fafafa; }
+    .liquid { fill: #fafafa; }
+    @media (prefers-color-scheme: dark) {
+      .tile { fill: #ebebeb; }
+      .ink { stroke: #171717; }
+      .liquid { fill: #171717; }
+    }
+  </style>
+  <rect class="tile" width="32" height="32" rx="8" />
+  <g transform="translate(4 4.5)" fill="none" stroke-width="2.25" stroke-linecap="round" stroke-linejoin="round">
+    <path class="liquid" stroke="none" opacity="0.45" d="M6.453 15h11.094l2.208 4.04A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96z" />
+    <path class="ink" d="M14 2v6a2 2 0 0 0 .245.96l5.51 10.08A2 2 0 0 1 18 22H6a2 2 0 0 1-1.755-2.96l5.51-10.08A2 2 0 0 0 10 8V2" />
+    <path class="ink" d="M6.453 15h11.094" />
+    <path class="ink" d="M8.5 2h7" />
+  </g>
+</svg>
