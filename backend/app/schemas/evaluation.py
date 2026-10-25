@@ -46,8 +46,13 @@ class CaseResult(BaseModel):
     metrics: list[MetricResult]
 
     @property
+    def scored(self) -> bool:
+        """False when none of the chosen evaluators applied to this case."""
+        return bool(self.metrics)
+
+    @property
     def passed(self) -> bool:
-        return all(m.passed for m in self.metrics)
+        return self.scored and all(m.passed for m in self.metrics)
 
 
 class RunSummary(BaseModel):
@@ -56,6 +61,9 @@ class RunSummary(BaseModel):
     agent: str
     evaluators: list[str]
     num_cases: int
+    num_scored: int = Field(
+        default=0, description="Cases at least one evaluator applied to; pass_rate is over these."
+    )
     pass_rate: float
     mean_scores: dict[str, float]
     mean_latency_ms: float

@@ -10,7 +10,14 @@ from pathlib import Path
 from app.agents import get_agent
 from app.core.config import get_settings
 from app.evaluators import BaseEvaluator, get_evaluators
-from app.schemas.evaluation import AgentTrace, CaseResult, EvalCase, RunListItem, RunSummary
+from app.schemas.evaluation import (
+    AgentTrace,
+    CaseResult,
+    EvalCase,
+    MetricResult,
+    RunListItem,
+    RunSummary,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -31,10 +38,26 @@ def list_datasets() -> list[str]:
     return sorted(p.name for p in get_settings().datasets_dir.glob("*.jsonl"))
 
 
+async def _safe_evaluate(
+    evaluator: BaseEvaluator, case: EvalCase, trace: AgentTrace
+) -> MetricResult | None:
+    """A broken evaluator (e.g. the LLM judge with no API key) fails its metric, not the run."""
+    try:
+        return await evaluator.evaluate(case, trace)
+    except Exception as exc:
+        logger.exception("Evaluator %s failed on case %s", evaluator.name, case.id)
+        return MetricResult(
+            name=evaluator.name,
+            score=0.0,
+            passed=False,
+            reason=f"evaluator error: {type(exc).__name__}: {exc}"[:500],
+        )
+
+
 async def score_case(
     case: EvalCase, trace: AgentTrace, evaluators: list[BaseEvaluator]
 ) -> CaseResult:
-    metrics = await asyncio.gather(*(e.evaluate(case, trace) for e in evaluators))
+    metrics = await asyncio.gather(*(_safe_evaluate(e, case, trace) for e in evaluators))
     return CaseResult(case_id=case.id, trace=trace, metrics=[m for m in metrics if m])
 
 
@@ -45,13 +68,16 @@ def summarize(agent: str, evaluator_names: list[str], results: list[CaseResult])
             by_metric.setdefault(m.name, []).append(m.score)
 
     n = len(results)
+    # Cases no evaluator applied to are left out of the pass rate rather than counted as passes.
+    scored = [r for r in results if r.scored]
     return RunSummary(
         run_id=uuid.uuid4().hex[:12],
         created_at=datetime.now(UTC),
         agent=agent,
         evaluators=evaluator_names,
         num_cases=n,
-        pass_rate=round(sum(r.passed for r in results) / n, 4) if n else 0.0,
+        num_scored=len(scored),
+        pass_rate=round(sum(r.passed for r in scored) / len(scored), 4) if scored else 0.0,
         mean_scores={k: round(sum(v) / len(v), 4) for k, v in sorted(by_metric.items())},
         mean_latency_ms=round(sum(r.trace.latency_ms for r in results) / n, 2) if n else 0.0,
         results=results,

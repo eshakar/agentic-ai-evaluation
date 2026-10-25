@@ -6,9 +6,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
 
+# The backend/ folder. Paths are anchored here so the app works from any working directory.
+BASE_DIR = Path(__file__).resolve().parents[2]
+
 
 class Settings(BaseSettings):
-    model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
+    model_config = SettingsConfigDict(
+        env_file=BASE_DIR / ".env", env_file_encoding="utf-8", extra="ignore"
+    )
 
     app_name: str = "agentic-ai-evaluation"
     app_env: str = "development"
@@ -24,8 +29,8 @@ class Settings(BaseSettings):
     enable_fallbacks: bool = True
     agent_max_turns: int = 8
 
-    datasets_dir: Path = Path("datasets")
-    results_dir: Path = Path("results")
+    datasets_dir: Path = BASE_DIR / "datasets"
+    results_dir: Path = BASE_DIR / "results"
 
 
 @lru_cache

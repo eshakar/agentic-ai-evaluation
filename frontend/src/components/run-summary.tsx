@@ -1,8 +1,8 @@
 "use client";
 
-import { CircleCheckIcon, CircleXIcon } from "lucide-react";
+import { CircleCheckIcon, CircleMinusIcon, CircleXIcon } from "lucide-react";
 
-import { isCasePassed, type MetricResult, type RunSummary } from "@/lib/api";
+import { isCasePassed, isCaseScored, type MetricResult, type RunSummary } from "@/lib/api";
 import { Badge } from "@/components/ui/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import {
@@ -31,7 +31,14 @@ function StatTile({ label, value, hint }: { label: string; value: string; hint?:
 }
 
 /** Status: always icon + label, never color alone. */
-function PassBadge({ passed }: { passed: boolean }) {
+function PassBadge({ passed, scored }: { passed: boolean; scored: boolean }) {
+  if (!scored) {
+    return (
+      <Badge variant="outline" className="text-muted-foreground">
+        <CircleMinusIcon /> Not scored
+      </Badge>
+    );
+  }
   return passed ? (
     <Badge className="bg-emerald-600/10 text-emerald-700 dark:bg-emerald-400/15 dark:text-emerald-300">
       <CircleCheckIcon /> Pass
@@ -107,6 +114,8 @@ function MetricChip({ m }: { m: MetricResult }) {
 
 export function RunSummaryView({ summary }: { summary: RunSummary }) {
   const passed = summary.results.filter(isCasePassed).length;
+  // Counted from the results so runs saved before num_scored existed still show correctly.
+  const scored = summary.results.filter(isCaseScored).length;
   const tokens = summary.results.reduce(
     (n, r) => n + r.trace.input_tokens + r.trace.output_tokens,
     0,
@@ -125,8 +134,12 @@ export function RunSummaryView({ summary }: { summary: RunSummary }) {
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <StatTile label="Pass rate" value={pct(summary.pass_rate)} hint={`${passed} of ${summary.num_cases} cases`} />
-        <StatTile label="Cases" value={String(summary.num_cases)} />
+        <StatTile label="Pass rate" value={pct(summary.pass_rate)} hint={`${passed} of ${scored} scored cases`} />
+        <StatTile
+          label="Cases"
+          value={String(summary.num_cases)}
+          hint={scored < summary.num_cases ? `${summary.num_cases - scored} not scored` : undefined}
+        />
         <StatTile label="Mean latency" value={ms(summary.mean_latency_ms)} />
         <StatTile label="Tokens used" value={tokens.toLocaleString()} />
       </div>
@@ -136,7 +149,11 @@ export function RunSummaryView({ summary }: { summary: RunSummary }) {
       <Card>
         <CardHeader>
           <CardTitle>Cases</CardTitle>
-          <CardDescription>A case passes only when every metric that applies passes.</CardDescription>
+          <CardDescription>
+            A case passes only when every metric that applies passes. &quot;Not scored&quot; means no
+            chosen evaluator applied to it (for example, exact_match on a case with no expected
+            answer), so it is left out of the pass rate.
+          </CardDescription>
         </CardHeader>
         <CardContent>
           <Table>
@@ -155,7 +172,7 @@ export function RunSummaryView({ summary }: { summary: RunSummary }) {
                 <TableRow key={r.case_id}>
                   <TableCell className="font-mono text-[13px]">{r.case_id}</TableCell>
                   <TableCell>
-                    <PassBadge passed={isCasePassed(r)} />
+                    <PassBadge passed={isCasePassed(r)} scored={isCaseScored(r)} />
                   </TableCell>
                   <TableCell className="max-w-72 truncate" title={r.trace.output}>
                     {r.trace.error ? (

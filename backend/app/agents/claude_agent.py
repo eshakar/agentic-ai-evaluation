@@ -44,6 +44,10 @@ class ClaudeToolAgent(BaseAgent):
             if response.stop_reason == "refusal":
                 error = "refusal"
                 break
+            if response.stop_reason == "max_tokens":
+                # The answer was cut off mid-way; don't score a truncated answer as clean.
+                error = "max_tokens"
+                break
             if response.stop_reason != "tool_use":
                 error = None
                 break

@@ -37,6 +37,8 @@ export type RunSummary = {
   agent: string;
   evaluators: string[];
   num_cases: number;
+  /** Cases at least one evaluator applied to; pass_rate is over these. */
+  num_scored: number;
   pass_rate: number;
   mean_scores: Record<string, number>;
   mean_latency_ms: number;
@@ -89,4 +91,6 @@ export const api = {
     }),
 };
 
-export const isCasePassed = (r: CaseResult) => r.metrics.every((m) => m.passed);
+/** Matches the backend: a case no evaluator applied to is "not scored", never a pass. */
+export const isCaseScored = (r: CaseResult) => r.metrics.length > 0;
+export const isCasePassed = (r: CaseResult) => isCaseScored(r) && r.metrics.every((m) => m.passed);

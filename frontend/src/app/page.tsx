@@ -8,7 +8,8 @@ import { RunForm } from "@/components/run-form";
 import { RunHistory } from "@/components/run-history";
 import { RunSummaryView } from "@/components/run-summary";
 import { ThemeToggle } from "@/components/theme-toggle";
-import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Alert, AlertAction, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 
@@ -21,14 +22,18 @@ export default function Dashboard() {
 
   const refreshRuns = useCallback(() => api.runs().then(setRuns), []);
 
-  useEffect(() => {
-    Promise.all([api.catalog(), api.runs()])
+  const loadInitial = useCallback(() => {
+    return Promise.all([api.catalog(), api.runs()])
       .then(([c, r]) => {
         setCatalog(c);
         setRuns(r);
       })
       .catch((e: Error) => setError(e.message));
   }, []);
+
+  useEffect(() => {
+    loadInitial();
+  }, [loadInitial]);
 
   const handleRun = async (req: RunRequest) => {
     setRunning(true);
@@ -83,6 +88,16 @@ export default function Dashboard() {
               <CircleAlertIcon />
               <AlertTitle>Something went wrong</AlertTitle>
               <AlertDescription>{error}</AlertDescription>
+              {!catalog && (
+                <AlertAction>
+                  <Button size="sm" variant="outline" onClick={() => {
+                      setError(null);
+                      loadInitial();
+                    }}>
+                    Retry
+                  </Button>
+                </AlertAction>
+              )}
             </Alert>
           )}
           {summary ? (
