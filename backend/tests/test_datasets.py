@@ -1,11 +1,11 @@
 import pytest
 
-from app.services.evaluation_service import list_datasets, load_dataset
+from app.services.evaluation_service import list_file_datasets, load_dataset
 
 
-@pytest.mark.parametrize("name", list_datasets())
-def test_dataset_is_valid(name):
-    cases = load_dataset(name)
+@pytest.mark.parametrize("name", list_file_datasets())
+async def test_dataset_is_valid(name):
+    cases = await load_dataset(name)
     assert cases, f"{name} is empty"
     ids = [c.id for c in cases]
     assert len(ids) == len(set(ids)), f"{name} has duplicate ids"
@@ -15,4 +15,4 @@ def test_dataset_is_valid(name):
 
 
 def test_tool_agent_dataset_is_listed():
-    assert "tool_agent_eval.jsonl" in list_datasets()
+    assert "tool_agent_eval.jsonl" in list_file_datasets()

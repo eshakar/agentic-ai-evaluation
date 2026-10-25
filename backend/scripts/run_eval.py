@@ -9,6 +9,7 @@ import argparse
 import asyncio
 
 from app.core.logging import setup_logging
+from app.db.store import close_storage, init_storage, storage_status
 from app.services.evaluation_service import load_dataset, run_evaluation
 
 
@@ -22,8 +23,16 @@ def main() -> None:
     args = parser.parse_args()
 
     setup_logging()
-    cases = load_dataset(args.dataset)
-    summary = asyncio.run(run_evaluation(args.agent, cases, args.evaluators))
+
+    async def go():
+        await init_storage()
+        try:
+            cases = await load_dataset(args.dataset)
+            return await run_evaluation(args.agent, cases, args.evaluators)
+        finally:
+            await close_storage()
+
+    summary = asyncio.run(go())
 
     print(f"\nRun {summary.run_id}  agent={summary.agent}  cases={summary.num_cases}")
     print(f"Pass rate: {summary.pass_rate:.0%}   mean latency: {summary.mean_latency_ms:.0f}ms")
@@ -34,7 +43,7 @@ def main() -> None:
         for m in r.metrics:
             if not m.passed:
                 print(f"  [{r.case_id}] {m.name}: {m.reason}")
-    print(f"\nFull report: results/{summary.run_id}.json")
+    print(f"\nSaved run {summary.run_id} to {storage_status()}")
 
 
 if __name__ == "__main__":

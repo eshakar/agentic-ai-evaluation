@@ -33,12 +33,17 @@ const isActive = (pathname: string | null, href: string) =>
 /** Small dot showing whether the FastAPI backend answers. */
 function ApiStatus() {
   const [online, setOnline] = useState<boolean | null>(null);
+  const [storage, setStorage] = useState<string | null>(null);
   useEffect(() => {
     let alive = true;
     const check = () =>
       api
         .health()
-        .then(() => alive && setOnline(true))
+        .then((h) => {
+          if (!alive) return;
+          setOnline(true);
+          setStorage(h.storage ?? null);
+        })
         .catch(() => alive && setOnline(false));
     check();
     const id = setInterval(check, 15000);
@@ -49,8 +54,10 @@ function ApiStatus() {
   }, []);
 
   const label = online === null ? "Checking API…" : online ? "API online" : "API offline";
+  const usingMongo = storage?.startsWith("mongodb");
+  const detail = online && storage ? `${label} · data stored in ${storage}` : label;
   return (
-    <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex" title={label}>
+    <span className="hidden items-center gap-1.5 text-xs text-muted-foreground sm:flex" title={detail}>
       <span className="relative flex size-2">
         {online && (
           <span className="absolute inline-flex size-full animate-ping rounded-full bg-emerald-500 opacity-60" />
@@ -63,6 +70,16 @@ function ApiStatus() {
         />
       </span>
       {label}
+      {online && storage && (
+        <span
+          className={cn(
+            "rounded-full border px-1.5 py-px text-[10px] font-medium",
+            usingMongo ? "text-foreground" : "text-amber-700 dark:text-amber-400",
+          )}
+        >
+          {usingMongo ? "MongoDB" : "Files"}
+        </span>
+      )}
     </span>
   );
 }

@@ -16,14 +16,14 @@ async def catalog() -> dict[str, list[str]]:
         "agents": list_agents(),
         "tools": [t["name"] for t in TOOLS],
         "evaluators": list_evaluators(),
-        "datasets": svc.list_datasets(),
+        "datasets": await svc.list_datasets(),
     }
 
 
 @router.get("/runs", response_model=list[RunListItem])
 async def list_runs(limit: int = Query(default=50, ge=1, le=500)) -> list[RunListItem]:
     """Most recent runs first."""
-    return svc.list_runs(limit)
+    return await svc.list_runs(limit)
 
 
 @router.post("/run", response_model=RunSummary)
@@ -33,7 +33,7 @@ async def run(request: RunRequest) -> RunSummary:
         if request.cases:
             cases = request.cases
         elif request.dataset:
-            cases = svc.load_dataset(request.dataset)
+            cases = await svc.load_dataset(request.dataset)
         else:
             raise ValueError("Provide either 'dataset' or 'cases'.")
         return await svc.run_evaluation(request.agent, cases, request.evaluators)
@@ -53,13 +53,13 @@ async def score(request: ScoreRequest) -> RunSummary:
 
     results = [await svc.score_case(i.case, i.trace, evaluators) for i in request.items]
     summary = svc.summarize(request.agent, request.evaluators, results)
-    svc.save_run(summary)
+    await svc.save_run(summary)
     return summary
 
 
 @router.get("/{run_id}", response_model=RunSummary)
 async def get_run(run_id: str) -> RunSummary:
-    summary = svc.load_run(run_id)
+    summary = await svc.load_run(run_id)
     if summary is None:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
     return summary
@@ -68,6 +68,6 @@ async def get_run(run_id: str) -> RunSummary:
 @router.delete("/{run_id}", status_code=204)
 async def delete_run(run_id: str) -> Response:
     """Permanently delete a saved run report."""
-    if not svc.delete_run(run_id):
+    if not await svc.delete_run(run_id):
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
     return Response(status_code=204)

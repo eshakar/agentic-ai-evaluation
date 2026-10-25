@@ -35,3 +35,6 @@ Thumbs.db
 # Evaluation outputs
 **/results/*
 !**/results/.gitkeep
+
+# Dataset files already copied into MongoDB by scripts/migrate_to_mongo.py
+*.jsonl.migrated

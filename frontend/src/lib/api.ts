@@ -141,7 +141,8 @@ const post = <T,>(path: string, body: unknown) =>
   request<T>(path, { method: "POST", body: JSON.stringify(body) });
 
 export const api = {
-  health: () => request<{ status: string }>("/health"),
+  /** storage: "mongodb (<db>)", "files", or "files (MongoDB unreachable: ...)". */
+  health: () => request<{ status: string; storage?: string }>("/health"),
   catalog: () => request<Catalog>("/api/v1/evaluations/catalog"),
   runs: (limit = 100) => request<RunListItem[]>(`/api/v1/evaluations/runs?limit=${limit}`),
   getRun: (runId: string) =>

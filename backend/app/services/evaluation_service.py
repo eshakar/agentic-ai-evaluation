@@ -1,15 +1,14 @@
 """Orchestrates an evaluation run: load cases -> run agent -> score -> aggregate -> persist."""
 
 import asyncio
-import json
 import logging
 import re
 import uuid
 from datetime import UTC, datetime
-from pathlib import Path
 
 from app.agents import BaseAgent, get_agent
 from app.core.config import get_settings
+from app.db.store import get_store
 from app.evaluators import BaseEvaluator, get_evaluators
 from app.schemas.evaluation import (
     AgentTrace,
@@ -27,18 +26,35 @@ from app.schemas.evaluation import (
 logger = logging.getLogger(__name__)
 
 
-def load_dataset(name: str) -> list[EvalCase]:
-    """Load a JSONL dataset (one EvalCase per line) from the datasets directory."""
+def _file_cases(name: str) -> list[EvalCase] | None:
+    """Cases from datasets/<name> on disk, or None if there is no such (safe) file."""
     datasets_dir = get_settings().datasets_dir.resolve()
     path = (datasets_dir / name).resolve()
     if datasets_dir not in path.parents or not path.is_file():
-        raise FileNotFoundError(f"Dataset '{name}' not found in {datasets_dir}")
+        return None
     with path.open(encoding="utf-8") as f:
         return [EvalCase.model_validate_json(line) for line in f if line.strip()]
 
 
-def list_datasets() -> list[str]:
+def list_file_datasets() -> list[str]:
+    """Dataset files in datasets/ (the built-in ones, plus saved files when not using MongoDB)."""
     return sorted(p.name for p in get_settings().datasets_dir.glob("*.jsonl"))
+
+
+async def load_dataset(name: str) -> list[EvalCase]:
+    """A dataset = its file's questions (if any) + questions saved to it in the store."""
+    file_cases = _file_cases(name)
+    saved = await get_store().saved_cases(name)
+    if file_cases is None and not saved:
+        raise FileNotFoundError(f"Dataset '{name}' not found")
+    cases = list(file_cases or [])
+    seen = {c.id for c in cases}
+    cases += [c for c in saved if c.id not in seen]
+    return cases
+
+
+async def list_datasets() -> list[str]:
+    return sorted(set(list_file_datasets()) | set(await get_store().saved_dataset_names()))
 
 
 _dataset_lock = asyncio.Lock()
@@ -50,15 +66,17 @@ def _slug(text: str, max_words: int = 6) -> str:
 
 
 async def save_case(request: SaveCaseRequest) -> SaveCaseResponse:
-    """Append a question to datasets/<name>.jsonl, creating the file if needed."""
+    """Save a question into a dataset (MongoDB, or the datasets/<name>.jsonl file)."""
     if not (request.expected_output or request.expected_tools is not None or request.rubric):
         raise ValueError(
             "Add at least one way to check the answer: an expected answer, "
             "expected tools, or grading rules for the AI judge."
         )
-    path = get_settings().datasets_dir / request.dataset
     async with _dataset_lock:
-        existing = load_dataset(request.dataset) if path.is_file() else []
+        try:
+            existing = await load_dataset(request.dataset)
+        except FileNotFoundError:
+            existing = []
         taken = {c.id for c in existing}
         base = _slug(request.question)
         case_id, n = base, 2
@@ -73,14 +91,7 @@ async def save_case(request: SaveCaseRequest) -> SaveCaseResponse:
             rubric=(request.rubric or "").strip() or None,
             metadata={"category": request.category or "custom", "source": "ask-page"},
         )
-        path.parent.mkdir(parents=True, exist_ok=True)
-        needs_newline = (
-            path.is_file() and path.stat().st_size > 0 and not path.read_bytes().endswith(b"\n")
-        )
-        with path.open("a", encoding="utf-8", newline="\n") as f:
-            if needs_newline:
-                f.write("\n")
-            f.write(case.model_dump_json(exclude_defaults=True) + "\n")
+        await get_store().add_case(request.dataset, case)
     return SaveCaseResponse(dataset=request.dataset, case=case, total_cases=len(existing) + 1)
 
 
@@ -130,45 +141,25 @@ def summarize(agent: str, evaluator_names: list[str], results: list[CaseResult])
     )
 
 
-def save_run(summary: RunSummary) -> Path:
-    results_dir = get_settings().results_dir
-    results_dir.mkdir(parents=True, exist_ok=True)
-    path = results_dir / f"{summary.run_id}.json"
-    path.write_text(summary.model_dump_json(indent=2), encoding="utf-8")
-    return path
+async def save_run(summary: RunSummary) -> None:
+    await get_store().save_run(summary)
 
 
-def load_run(run_id: str) -> RunSummary | None:
-    if not run_id.isalnum():
-        return None
-    path = get_settings().results_dir / f"{run_id}.json"
-    if not path.is_file():
-        return None
-    return RunSummary.model_validate(json.loads(path.read_text(encoding="utf-8")))
+async def load_run(run_id: str) -> RunSummary | None:
+    return await get_store().load_run(run_id)
 
 
-def delete_run(run_id: str) -> bool:
+async def delete_run(run_id: str) -> bool:
     """Delete a saved run report. Returns False if there is no such run."""
-    if not run_id.isalnum():
-        return False
-    path = get_settings().results_dir / f"{run_id}.json"
-    if not path.is_file():
-        return False
-    path.unlink()
-    logger.info("Deleted run %s", run_id)
-    return True
+    deleted = await get_store().delete_run(run_id)
+    if deleted:
+        logger.info("Deleted run %s", run_id)
+    return deleted
 
 
-def list_runs(limit: int = 20) -> list[RunListItem]:
+async def list_runs(limit: int = 20) -> list[RunListItem]:
     """Most recent saved runs first."""
-    items: list[RunListItem] = []
-    for path in get_settings().results_dir.glob("*.json"):
-        try:
-            items.append(RunListItem.model_validate_json(path.read_text(encoding="utf-8")))
-        except ValueError:
-            logger.warning("Skipping unreadable run file %s", path.name)
-    items.sort(key=lambda r: r.created_at, reverse=True)
-    return items[:limit]
+    return await get_store().list_runs(limit)
 
 
 async def _run_agent_safely(agent: BaseAgent, case: EvalCase) -> AgentTrace:
@@ -222,7 +213,7 @@ async def run_evaluation(
 
     results = await asyncio.gather(*(_one(c) for c in cases))
     summary = summarize(agent_name, evaluator_names, list(results))
-    save_run(summary)
+    await save_run(summary)
     logger.info(
         "Run %s: pass_rate=%.2f over %d cases", summary.run_id, summary.pass_rate, len(cases)
     )

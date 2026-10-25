@@ -122,6 +122,23 @@ pre-commit install # run lint on every commit
 docker build -t agentic-eval-backend . && docker run -p 8000:8000 --env-file .env agentic-eval-backend
 ```
 
+## Database (MongoDB)
+
+Run reports and questions saved from the Ask page are stored in **MongoDB** when `MONGODB_URI` is set
+in `.env`, using [Beanie](https://beanie-odm.dev) (a Mongoose-style ODM for Python on the async PyMongo
+driver). Models live in `app/db/models.py`: collection `runs` (one document per run) and `cases`
+(saved questions, keyed by dataset name). Built-in datasets in `datasets/*.jsonl` always stay as files.
+
+Without `MONGODB_URI` everything falls back to files (`results/` and `datasets/`), which is also what the
+tests use. If MongoDB can't be reached at startup the API logs an error and uses files; `GET /health`
+shows which storage is active, and so does the badge in the website's navigation bar.
+
+```bash
+python -m scripts.migrate_to_mongo --dry-run   # preview copying local runs / saved questions
+python -m scripts.migrate_to_mongo             # copy them (safe to repeat; deletes nothing)
+MONGODB_TEST_URI="mongodb+srv://..." pytest tests/test_mongo_store.py   # integration test, throwaway DB
+```
+
 ## Configuration
 
 See `.env.example`. Key settings:

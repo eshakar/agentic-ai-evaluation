@@ -39,6 +39,11 @@ class Settings(BaseSettings):
     # Which provider grades answers for the llm_judge evaluator.
     judge_provider: Literal["anthropic", "gemini"] = "anthropic"
 
+    # MongoDB (Atlas). When set, run reports and saved questions live in MongoDB;
+    # when empty, they are kept as files in results/ and datasets/.
+    mongodb_uri: str | None = None
+    mongodb_db: str = "agentic_eval"
+
     datasets_dir: Path = BASE_DIR / "datasets"
     results_dir: Path = BASE_DIR / "results"
 

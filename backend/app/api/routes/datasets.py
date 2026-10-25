@@ -10,7 +10,7 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 async def get_dataset(name: str) -> list[EvalCase]:
     """All questions in one dataset file."""
     try:
-        return svc.load_dataset(name)
+        return await svc.load_dataset(name)
     except FileNotFoundError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
 
