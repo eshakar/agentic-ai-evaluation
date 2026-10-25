@@ -4,7 +4,7 @@ A FastAPI service for **evaluating agentic AI systems**: run an agent over a dat
 
 ## Features
 
-- **Agents under test**: pluggable `BaseAgent` interface. Ships with an offline `echo` baseline and a tool-using `claude` agent (manual agentic loop, so every tool call is recorded).
+- **Agents under test**: pluggable `BaseAgent` interface. Ships with an offline `echo` baseline and two tool-using agents with the same tools, `claude` (Anthropic) and `gemini` (Google), each driven by a manual loop so every tool call is recorded and the two can be compared on the same dataset.
 - **Evaluators**:
   | Name | What it measures |
   |---|---|
@@ -124,4 +124,11 @@ docker build -t agentic-eval-backend . && docker run -p 8000:8000 --env-file .en
 
 ## Configuration
 
-See `.env.example`. Key settings: `AGENT_MODEL` / `JUDGE_MODEL` (default `claude-opus-5-5`), `AGENT_EFFORT` / `JUDGE_EFFORT`, `AGENT_MAX_TURNS`, and `ENABLE_FALLBACKS` (server-side retry on a fallback model if a request is refused).
+See `.env.example`. Key settings:
+
+- **Claude**: `ANTHROPIC_API_KEY`, `AGENT_MODEL` / `JUDGE_MODEL` (default `claude-opus-5-5`), `AGENT_EFFORT` / `JUDGE_EFFORT`, `ENABLE_FALLBACKS` (server-side retry on a fallback model if a request is refused).
+- **Gemini**: `GEMINI_API_KEY` (from Google AI Studio), `GEMINI_AGENT_MODEL` / `GEMINI_JUDGE_MODEL` (default `gemini-3.5-flash-lite`).
+- **Judge**: `JUDGE_PROVIDER` = `anthropic` or `gemini` picks who grades answers for `llm_judge`.
+- **Run**: `AGENT_MAX_TURNS`, `MAX_CONCURRENCY` (questions at once; use `1` on a rate-limited free tier).
+
+Gemini's free tier has small per-minute **and per-day** limits per model. A `429 RESOURCE_EXHAUSTED` error naming `GenerateRequestsPerDay...` means the day's allowance for that model is used up: switch `GEMINI_AGENT_MODEL` / `GEMINI_JUDGE_MODEL` to another model, wait for the daily reset, or enable billing in Google AI Studio.

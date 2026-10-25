@@ -93,6 +93,50 @@ class RunRequest(BaseModel):
     )
 
 
+class AskRequest(BaseModel):
+    """One free-form question for a quick manual check of an agent."""
+
+    agent: str = "echo"
+    question: str = Field(min_length=1, max_length=4000)
+    expected_output: str | None = Field(
+        default=None, max_length=1000, description="Optional: the answer you expect."
+    )
+    expected_tools: list[str] | None = Field(
+        default=None, description="Optional: tools the agent should call, in order."
+    )
+    rubric: str | None = Field(
+        default=None, max_length=2000, description="Optional: grading rules for the AI judge."
+    )
+    use_judge: bool = Field(default=False, description="Also grade the answer with llm_judge.")
+
+
+class AskResponse(BaseModel):
+    agent: str
+    question: str
+    trace: AgentTrace
+    metrics: list[MetricResult]
+
+
+DATASET_NAME_PATTERN = r"^[A-Za-z0-9][A-Za-z0-9_-]{0,63}\.jsonl$"
+
+
+class SaveCaseRequest(BaseModel):
+    """Add one question to a dataset file (created if it does not exist)."""
+
+    dataset: str = Field(default="my_questions.jsonl", pattern=DATASET_NAME_PATTERN)
+    question: str = Field(min_length=1, max_length=4000)
+    expected_output: str | None = Field(default=None, max_length=1000)
+    expected_tools: list[str] | None = None
+    rubric: str | None = Field(default=None, max_length=2000)
+    category: str | None = Field(default=None, max_length=50)
+
+
+class SaveCaseResponse(BaseModel):
+    dataset: str
+    case: EvalCase
+    total_cases: int
+
+
 class ScoreItem(BaseModel):
     case: EvalCase
     trace: AgentTrace

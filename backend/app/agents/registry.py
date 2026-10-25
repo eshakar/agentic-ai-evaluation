@@ -1,10 +1,12 @@
 from app.agents.base import BaseAgent
 from app.agents.claude_agent import ClaudeToolAgent
 from app.agents.echo_agent import EchoAgent
+from app.agents.gemini_agent import GeminiToolAgent
 
 _AGENTS: dict[str, type[BaseAgent]] = {
     EchoAgent.name: EchoAgent,
     ClaudeToolAgent.name: ClaudeToolAgent,
+    GeminiToolAgent.name: GeminiToolAgent,
 }
 
 

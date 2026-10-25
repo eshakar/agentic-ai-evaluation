@@ -17,7 +17,7 @@ import {
 } from "@/components/ui/select";
 
 const DEFAULT_EVALUATORS = ["contains", "tool_sequence", "latency", "no_error"];
-const NEEDS_API_KEY = new Set(["claude", "llm_judge"]);
+const NEEDS_API_KEY = new Set(["claude", "gemini", "llm_judge"]);
 
 type Props = {
   catalog: Catalog;

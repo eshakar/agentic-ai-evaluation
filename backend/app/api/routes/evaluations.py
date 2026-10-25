@@ -1,6 +1,7 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Response
 
 from app.agents import list_agents
+from app.agents.tools import TOOLS
 from app.evaluators import get_evaluators, list_evaluators
 from app.schemas.evaluation import RunListItem, RunRequest, RunSummary, ScoreRequest
 from app.services import evaluation_service as svc
@@ -10,16 +11,17 @@ router = APIRouter(prefix="/evaluations", tags=["evaluations"])
 
 @router.get("/catalog")
 async def catalog() -> dict[str, list[str]]:
-    """Available agents, evaluators and datasets."""
+    """Available agents, evaluators, datasets and the tools agents can call."""
     return {
         "agents": list_agents(),
+        "tools": [t["name"] for t in TOOLS],
         "evaluators": list_evaluators(),
         "datasets": svc.list_datasets(),
     }
 
 
 @router.get("/runs", response_model=list[RunListItem])
-async def list_runs(limit: int = 20) -> list[RunListItem]:
+async def list_runs(limit: int = Query(default=50, ge=1, le=500)) -> list[RunListItem]:
     """Most recent runs first."""
     return svc.list_runs(limit)
 
@@ -61,3 +63,11 @@ async def get_run(run_id: str) -> RunSummary:
     if summary is None:
         raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
     return summary
+
+
+@router.delete("/{run_id}", status_code=204)
+async def delete_run(run_id: str) -> Response:
+    """Permanently delete a saved run report."""
+    if not svc.delete_run(run_id):
+        raise HTTPException(status_code=404, detail=f"Run '{run_id}' not found")
+    return Response(status_code=204)

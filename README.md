@@ -33,8 +33,8 @@ npm install
 npm run dev
 ```
 
-Open http://localhost:3000, pick an agent, a dataset and evaluators, and click **Run evaluation**.
-The `echo` agent and the non-LLM evaluators work without an API key; `claude` and `llm_judge` need `ANTHROPIC_API_KEY` in `backend/.env`.
+Open http://localhost:3000. Use **Ask** to try single questions, **Evaluate** to run a whole dataset, and **Past runs** to review or delete reports.
+The `echo` agent and the non-LLM evaluators work without an API key. `claude` needs `ANTHROPIC_API_KEY` and `gemini` needs `GEMINI_API_KEY` in `backend/.env`; `llm_judge` uses whichever `JUDGE_PROVIDER` names.
 
 ## How the two parts talk
 
@@ -42,8 +42,12 @@ The frontend calls the backend's REST API at `NEXT_PUBLIC_API_URL` (default `htt
 
 | Endpoint | Used for |
 |---|---|
-| `GET  /api/v1/evaluations/catalog` | agents, evaluators and datasets for the form |
+| `POST /api/v1/agents/ask` | ask one agent one question, with optional checks and AI judge |
+| `POST /api/v1/datasets/cases` | save a question (and its checks) into a dataset file |
+| `GET  /api/v1/datasets/{name}` | read a dataset's questions |
+| `GET  /api/v1/evaluations/catalog` | agents, tools, evaluators and datasets for the forms |
 | `POST /api/v1/evaluations/run` | run an agent over a dataset and score it |
 | `GET  /api/v1/evaluations/runs` | past runs list |
 | `GET  /api/v1/evaluations/{run_id}` | one run's full report |
+| `DELETE /api/v1/evaluations/{run_id}` | delete a run |
 | `POST /api/v1/evaluations/score` | score traces recorded by an external agent |

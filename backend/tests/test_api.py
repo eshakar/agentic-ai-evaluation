@@ -9,6 +9,7 @@ def test_catalog(client):
     assert "echo" in body["agents"]
     assert "llm_judge" in body["evaluators"]
     assert "sample_eval.jsonl" in body["datasets"]
+    assert body["tools"] == ["calculator", "current_utc_time"]
 
 
 def test_run_echo_agent_inline_cases_and_fetch(client):

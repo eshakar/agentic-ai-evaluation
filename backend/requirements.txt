@@ -3,4 +3,5 @@ uvicorn[standard]>=0.30
 pydantic>=2.8
 pydantic-settings>=2.4
 anthropic>=0.70
+google-genai>=2.33
 python-dotenv>=1.0

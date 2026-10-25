@@ -2,6 +2,7 @@ from functools import lru_cache
 from pathlib import Path
 from typing import Literal
 
+from pydantic import Field, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 Effort = Literal["low", "medium", "high", "xhigh", "max"]
@@ -28,9 +29,25 @@ class Settings(BaseSettings):
     judge_effort: Effort = "medium"
     enable_fallbacks: bool = True
     agent_max_turns: int = 8
+    # How many questions run at the same time. Lower it (e.g. 1) on rate-limited free tiers.
+    max_concurrency: int = Field(default=5, ge=1)
+
+    # Google Gemini (used by the "gemini" agent, and by llm_judge when judge_provider="gemini")
+    gemini_api_key: str | None = None
+    gemini_agent_model: str = "gemini-3.5-flash-lite"
+    gemini_judge_model: str = "gemini-3.5-flash-lite"
+    # Which provider grades answers for the llm_judge evaluator.
+    judge_provider: Literal["anthropic", "gemini"] = "anthropic"
 
     datasets_dir: Path = BASE_DIR / "datasets"
     results_dir: Path = BASE_DIR / "results"
+
+    @field_validator("datasets_dir", "results_dir")
+    @classmethod
+    def _anchor_relative_paths(cls, value: Path) -> Path:
+        # A relative path from .env (e.g. RESULTS_DIR=results) means relative to backend/,
+        # not to whatever folder the server happened to be started from.
+        return value if value.is_absolute() else BASE_DIR / value
 
 
 @lru_cache
